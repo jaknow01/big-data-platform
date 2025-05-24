@@ -18,17 +18,17 @@ def insert_files_postgress():
     cursor = connection.cursor()
 
     for file in csv_files_list:
-
-        table = pd.read_csv(file)
+        file_path = os.path.join(csv_path, file)
+        table = pd.read_csv(file_path)
         table_name = file.split(".")[0]
 
-        columns_sql = ", ".join([f"{col} TEXT" for col in table.columns])
-        create_sql = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_sql});"
+        columns_sql = ", ".join([f'"{col}" TEXT' for col in table.columns])
+        create_sql = f'CREATE TABLE IF NOT EXISTS "{table_name}" ({columns_sql});'
         cursor.execute(create_sql)
 
         for row in table.itertuples(index=False, name=None):
             placeholders = ', '.join(['%s'] * len(row))
-            insert_sql = f"INSERT INTO {table_name} VALUES ({placeholders});"
+            insert_sql = f'INSERT INTO "{table_name}" VALUES ({placeholders});'
             cursor.execute(insert_sql, row)
 
         print(f"{len(table)} rows inserted into {table_name}")
