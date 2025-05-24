@@ -17,9 +17,9 @@ config = {
         "plugin.name": "pgoutput",
         "slot.name": "debezium_slot",
         "publication.autocreate.mode": "filtered",
-        "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+        "key.converter": "io.confluent.connect.avro.AvroConverter",
+        "value.converter": "io.confluent.connect.avro.AvroConverter",
         "key.converter.schema.registry.url": "http://schema-registry:8081",
-        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
         "value.converter.schema.registry.url": "http://schema-registry:8081"
     }
 }
