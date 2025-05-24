@@ -37,6 +37,22 @@ def insert_files_postgress():
     cursor.close()
     connection.close()
 
+def simulate_change():
+    import time
+    time.sleep(5)  # daj Debezium czas na rozruch
+    print("\n🔄 Simulating data change...")
+
+    conn = psycopg2.connect(**config_postgres)
+    cur = conn.cursor()
+    
+    cur.execute("DELETE FROM organizations_100 WHERE \"Country\" = 'China';")
+    conn.commit()
+
+    print("✅ Deleted chinese companies")
+    cur.close()
+    conn.close()
+
 if __name__ == '__main__':
     insert_files_postgress()
+    simulate_change()
     
