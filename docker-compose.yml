@@ -15,63 +15,144 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  #potrzebne do kafki
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
+    image: confluentinc/cp-zookeeper:5.5.3
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
 
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
+    image: confluentinc/cp-enterprise-kafka:5.5.3
     depends_on:
       - zookeeper
+
     ports:
-      - "9092:9092"
+      - 29092:29092
+      - 9092:9092
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
 
-  #odpowiada za AVRO w drugim tasku
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.4.0
-    depends_on:
-      - kafka
-    ports:
-      - "8081:8081"
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'PLAINTEXT://kafka:9092'
 
   debezium:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      - kafka
-      - schema-registry
-      - postgres
-    ports:
-      - "8083:8083"
+    image: debezium/connect:1.4
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: 1
-      CONFIG_STORAGE_TOPIC: my_connect_configs
-      OFFSET_STORAGE_TOPIC: my_connect_offsets
-      STATUS_STORAGE_TOPIC: my_connect_statuses
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
       KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
       VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
-      KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # Ważne: użyj ścieżki z obrazu Debezium
-      CONNECT_PLUGIN_PATH: /kafka/connect
-      # Dodatkowe ustawienia
-      CONNECT_REST_ADVERTISED_HOST_NAME: debezium
-      CONNECT_REST_PORT: 8083
-      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on: [kafka]
+    ports:
+      - 8083:8083
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:5.5.3
+    environment:
+      - SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=zookeeper:2181
+      - SCHEMA_REGISTRY_HOST_NAME=schema-registry
+      - SCHEMA_REGISTRY_LISTENERS=http://schema-registry:8081,http://localhost:8081
+    ports:
+      - 8081:8081
+    depends_on: [zookeeper, kafka]
+  
+  kafka_manager:
+    image: hlebalbau/kafka-manager:stable
+    restart: always
+    ports:
+      - "9000:9000"
+    depends_on:
+      - zookeeper
+      - kafka
+    environment:
+      ZK_HOSTS: "zookeeper:2181"
+      APPLICATION_SECRET: "random-secret"
+    command: -Dpidfile.path=/dev/null 
+
+  #potrzebne do kafki
+#   zookeeper:
+#     image: confluentinc/cp-zookeeper:7.9.0
+#     container_name: zookeeper
+#     ports:
+#       - "2181:2181"
+#     environment:
+#       ZOOKEEPER_CLIENT_PORT: 2181
+#     volumes:
+#       - zookeeper_data:/var/lib/zookeeper/data
+
+#   kafka:
+#     image: confluentinc/cp-kafka:7.9.0
+#     container_name: kafka
+#     depends_on:
+#       - zookeeper
+#     ports:
+#       - "9092:9092"
+#       - "29092:29092"
+#     environment:
+#       KAFKA_BROKER_ID: 1
+#       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+#       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+#       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+#       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+#       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+#       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+#       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+#       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+#     volumes:
+#       - kafka_data:/var/lib/kafka/data
+
+
+#   schema-registry:
+#     image: confluentinc/cp-schema-registry:7.9.0
+#     container_name: schema-registry
+#     depends_on:
+#       - kafka
+#       - zookeeper
+#     ports:
+#       - "8081:8081"
+#     environment:
+#       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+#       SCHEMA_REGISTRY_HOST_NAME: schema-registry
+#       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+#       SCHEMA_REGISTRY_COMPATIBILITY_LEVEL: "BACKWARD"
+
+#   debezium:
+#     image: quay.io/debezium/connect:3.1.0.Final
+#     container_name: kafka-connector
+#     ports:
+#       - "8083:8083"
+#     environment:
+#       BOOTSTRAP_SERVERS: kafka:9092
+#       GROUP_ID: kafka-connector
+#       CONFIG_STORAGE_TOPIC: connect-configs
+#       OFFSET_STORAGE_TOPIC: connect-offsets
+#       STATUS_STORAGE_TOPIC: connect-status
+#       KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+#       VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+#       KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+#       VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+#       CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+#       CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+#       CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+#       CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+#       KAFKA_CONNECT_PLUGINS_DIR: /kafka/connect/
+#     depends_on:
+#       - kafka
+#     volumes:
+#       - ./config/debezium/confluentinc-kafka-connect-avro-converter-7.9.0/lib:/kafka/connect/libs
+
+#   debezium-configurator:
+#     build:
+#       context: .
+#       dockerfile: services/debezium_configurator/Dockerfile
+#     container_name: debezium-configurator
 
 volumes:
   pgdata:
+  # kafka_data:
+  # zookeeper_data:

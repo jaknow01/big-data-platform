@@ -12,15 +12,20 @@ config = {
         "database.user": "uzytkownik",
         "database.password": "haslo123",
         "database.dbname": "baza_postgres",
-        "topic.prefix": "dbserver1",
+
         "database.server.name": "dbserver1",
         "plugin.name": "pgoutput",
         "slot.name": "debezium_slot",
         "publication.autocreate.mode": "filtered",
+
         "key.converter": "io.confluent.connect.avro.AvroConverter",
         "value.converter": "io.confluent.connect.avro.AvroConverter",
         "key.converter.schema.registry.url": "http://schema-registry:8081",
-        "value.converter.schema.registry.url": "http://schema-registry:8081"
+        "value.converter.schema.registry.url": "http://schema-registry:8081",
+
+        "decimal.handling.mode": "double",  # opcjonalne, ale często przydatne
+        "time.precision.mode": "connect",   # opcjonalne
+        "tombstones.on.delete": "false"     # opcjonalne
     }
 }
 
