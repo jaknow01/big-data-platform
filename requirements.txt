@@ -3,4 +3,6 @@ psycopg2-binary
 requests
 confluent-kafka
 fastavro
+avro-python3
 httpx
+pyspark
