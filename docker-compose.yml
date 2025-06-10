@@ -86,7 +86,6 @@ services:
     depends_on:
       - kafka
 
-  # MinIO dla Task 5
   minio:
     image: minio/minio:latest
     container_name: minio

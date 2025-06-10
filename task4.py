@@ -4,8 +4,13 @@ from pyspark.sql.types import StructType, StringType, IntegerType
 
 spark = SparkSession.builder \
     .appName("KafkaJSONSparkStream") \
-    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.0") \
+    .config("spark.jars.packages",
+        "org.apache.spark:spark-sql-kafka-0-10_2.13:4.0.0,"
+        "io.delta:delta-spark_2.13:4.0.0") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
+
 
 # Schéma dla danych organizacji (część 'after' z Debezium)
 organization_schema = StructType() \
@@ -48,12 +53,20 @@ country_count = json_df.groupBy("Country") \
     .orderBy(desc("Number_of_Companies"))
 
 # Wyświetlanie wyników
+# query = country_count.writeStream \
+#     .format("console") \
+#     .option("truncate", False) \
+#     .option("numRows", 50) \
+#     .outputMode("complete") \
+#     .trigger(processingTime='10 seconds') \
+#     .start()
+
+output_path = "output"
+
 query = country_count.writeStream \
-    .format("console") \
-    .option("truncate", False) \
-    .option("numRows", 50) \
+    .format("delta") \
     .outputMode("complete") \
-    .trigger(processingTime='10 seconds') \
-    .start()
+    .option("checkpointLocation", "output") \
+    .start(output_path)
 
 query.awaitTermination()
