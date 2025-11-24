@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "01_generate_data_load_postgres.py"]
+CMD ["python", "generate_data_load_postgres.py"]
