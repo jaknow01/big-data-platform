@@ -51,7 +51,7 @@ debezium_schema = StructType() \
 df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "kafka:9092") \
-    .option("subscribe", "postgres.public.organizations_100") \
+    .option("subscribe", "dbserver1.public.organizations_100") \
     .option("startingOffsets", "earliest") \
     .load()
 

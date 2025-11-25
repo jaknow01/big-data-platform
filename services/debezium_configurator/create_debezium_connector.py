@@ -70,7 +70,10 @@ def register_connector():
 def check_connector_status():
     """Sprawdza status konektora"""
     try:
-        response = requests.get(f"{DEBEZIUM_URL}/postgres-connector/status")
+        url = f"{DEBEZIUM_URL}/connectors/postgres-connector/status"
+        print(f"Checking connector status at: {url}", flush=True)
+        
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             status = response.json()
             print(f"📊 Connector status: {status['connector']['state']}")

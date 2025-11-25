@@ -162,7 +162,7 @@ services:
       - debezium-configurator
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_TOPIC: postgres.public.organizations_100
+      KAFKA_TOPIC: dbserver1.public.organizations_100
 
   spark-processor:
     build:
@@ -181,6 +181,7 @@ services:
         condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: dbserver1.public.organizations_100
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
