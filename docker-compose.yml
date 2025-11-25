@@ -1,4 +1,6 @@
 services:
+
+  # PREBUILT SERVICES
   postgres:
     image: postgres:15
     container_name: my_postgres
@@ -6,22 +8,31 @@ services:
       POSTGRES_USER: uzytkownik
       POSTGRES_PASSWORD: haslo123
       POSTGRES_DB: baza_postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uzytkownik -d baza_postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "5432:5432"
     command: >
       postgres -c wal_level=logical
       -c max_replication_slots=10
       -c max_wal_senders=10
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
   zookeeper:
     image: confluentinc/cp-zookeeper:5.5.3
+    platform: linux/amd64
+    depends_on:
+      postgres:
+        condition:
+          service_healthy
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
 
   kafka:
     image: confluentinc/cp-enterprise-kafka:5.5.3
+    platform: linux/amd64
     depends_on:
       - zookeeper
     ports:
@@ -36,6 +47,7 @@ services:
 
   debezium:
     image: debezium/connect:1.4
+    platform: linux/amd64
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
       GROUP_ID: 1
@@ -46,7 +58,6 @@ services:
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_TOPIC_CREATION_ENABLE: "true"
-      # Konfiguracja dla JSON zamiast AVRO
       KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
@@ -58,6 +69,7 @@ services:
 
   kafka_manager:
     image: hlebalbau/kafka-manager:stable
+    platform: linux/amd64
     restart: always
     ports:
       - "9000:9000"
@@ -70,21 +82,22 @@ services:
     command: -Dpidfile.path=/dev/null
 
   spark:
-    image: bitnami/spark:3.4.1
+    image: apache/spark:3.4.1-python3
     container_name: spark
     environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
     ports:
-      - "8088:8088" # Spark UI master
-      - "7077:7077" # Spark master port
+      - "8088:8088"
+      - "7077:7077"
     volumes:
       - ./spark/spark-app:/opt/spark-app
     depends_on:
       - kafka
+  
 
   minio:
     image: minio/minio:latest
@@ -98,6 +111,82 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin123; do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb myminio/datalake;
+      /usr/bin/mc anonymous set public myminio/datalake;
+      exit 0;
+      "
+
+  # CUSTOM SERVICES
+  data-initializer:
+    build:
+      context: ./services/data_initializer
+      dockerfile: Dockerfile
+    container_name: data_initializer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: uzytkownik
+      POSTGRES_PASSWORD: haslo123
+      POSTGRES_DB: baza_postgres
+
+  debezium-configurator:
+    build:
+      context: ./services/debezium_configurator
+      dockerfile: Dockerfile
+    container_name: debezium_configurator
+    depends_on:
+      - debezium
+      - data-initializer
+    environment:
+      DEBEZIUM_HOST: debezium
+      DEBEZIUM_PORT: 8083
+
+  kafka-consumer:
+    build:
+      context: ./services/kafka_consumer
+      dockerfile: Dockerfile
+    container_name: kafka_consumer
+    depends_on:
+      - kafka
+      - debezium-configurator
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: dbserver1.public.organizations_100
+
+  spark-processor:
+    build:
+      context: ./services/spark_processor
+      dockerfile: Dockerfile
+    container_name: spark_processor
+    restart: on-failure
+    depends_on:
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      debezium-configurator:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: dbserver1.public.organizations_100
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+    ports:
+      - "4040:4040"
 
 volumes:
   pgdata:

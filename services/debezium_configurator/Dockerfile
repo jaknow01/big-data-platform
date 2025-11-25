@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Kopiowanie skryptu
-COPY 02_create_debezium_connector.py .
+COPY create_debezium_connector.py .
 
 # Skrypt czeka na dostępność Debezium, a potem tworzy konektor
-CMD ["python", "02_create_debezium_connector.py"]
+CMD ["python", "create_debezium_connector.py"]
