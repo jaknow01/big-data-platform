@@ -1,8 +1,11 @@
 import requests
 import json
 import time
+import os
 
-url = "http://localhost:8083/connectors"
+DEBEZIUM_HOST = os.getenv('DEBEZIUM_HOST', 'localhost')
+DEBEZIUM_PORT = os.getenv('DEBEZIUM_PORT', '8083')
+DEBEZIUM_URL = f"http://{DEBEZIUM_HOST}:{DEBEZIUM_PORT}"
 
 # Konfiguracja Debezium z formatem JSON
 config = {
@@ -34,7 +37,7 @@ config = {
 def check_debezium_health():
     """Sprawdza czy Debezium jest gotowy"""
     try:
-        response = requests.get("http://localhost:8083/")
+        response = requests.get(f"{DEBEZIUM_URL}/")
         return response.status_code == 200
     except requests.exceptions.RequestException:
         return False
@@ -43,6 +46,8 @@ def register_connector():
     """Rejestruje konektor Debezium"""
     headers = {"Content-Type": "application/json"}
     print("Sending connector configuration to Debezium...")
+
+    url = f"{DEBEZIUM_URL}/connectors"
     
     try:
         response = requests.post(url, headers=headers, data=json.dumps(config))
@@ -65,7 +70,7 @@ def register_connector():
 def check_connector_status():
     """Sprawdza status konektora"""
     try:
-        response = requests.get(f"{url}/postgres-connector/status")
+        response = requests.get(f"{DEBEZIUM_URL}/postgres-connector/status")
         if response.status_code == 200:
             status = response.json()
             print(f"📊 Connector status: {status['connector']['state']}")

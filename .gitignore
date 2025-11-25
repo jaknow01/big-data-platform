@@ -1,3 +1,4 @@
 .env
 wpbd/
 .venv
+spark/
