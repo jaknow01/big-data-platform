@@ -1,1 +1,8 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/ano0EjUK)
+#Mini Data Platform in Docker Containers – Semester Project
+
+
+##Objective
+Develop a mini data platform using Docker containers that simulates a business process, ingests data into PostgreSQL, captures changes with Debezium, streams data through Kafka, processes it in Spark and stores it in MinIO in Delta format.
+
+
+![alt text](schema.png)
