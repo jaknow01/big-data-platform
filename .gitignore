@@ -2,3 +2,6 @@ wpbd/
 .venv
 spark/
 .env
+services/airflow/dags/__pycache__
+services/airflow/dags/scripts/__pycache__
+services/airflow/logs
