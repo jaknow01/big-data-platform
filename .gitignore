@@ -1,4 +1,4 @@
-.env
 wpbd/
 .venv
 spark/
+.env

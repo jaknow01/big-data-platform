@@ -25,7 +25,7 @@ def simulate_change():
     operation_count = 0
     
     try:
-        while True:
+        while operation_count<10:
             sleep_time = random.uniform(2, 6)
             time.sleep(sleep_time)
             
