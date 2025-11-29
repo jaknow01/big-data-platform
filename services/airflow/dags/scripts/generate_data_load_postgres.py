@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 import psycopg2
-from simulate_change import simulate_change
 
 config_postgres = {
     'dbname': os.getenv('POSTGRES_DB', 'baza_postgres'),
@@ -96,4 +95,3 @@ def insert_files_postgress():
 if __name__ == '__main__':
     clean_database()
     insert_files_postgress()
-    simulate_change()

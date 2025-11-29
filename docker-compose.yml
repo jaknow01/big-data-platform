@@ -13,11 +13,11 @@ x-airflow-common:
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR: 'true'
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-pandas psycopg2-binary requests}
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/services/airflow/dags:/opt/airflow/dags
@@ -422,41 +422,14 @@ services:
 
 
   # CUSTOM SERVICES
-  data-initializer:
-    build:
-      context: ./services/data_initializer
-      dockerfile: build/Dockerfile
-    container_name: data_initializer
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: uzytkownik
-      POSTGRES_PASSWORD: haslo123
-      POSTGRES_DB: baza_postgres
-
-  debezium-configurator:
-    build:
-      context: ./services/debezium_configurator
-      dockerfile: build/Dockerfile
-    container_name: debezium_configurator
-    depends_on:
-      - debezium
-      - data-initializer
-    environment:
-      DEBEZIUM_HOST: debezium
-      DEBEZIUM_PORT: 8083
-
   kafka-consumer:
     build:
       context: ./services/kafka_consumer
       dockerfile: build/Dockerfile
     container_name: kafka_consumer
+    restart: always
     depends_on:
       - kafka
-      - debezium-configurator
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC: dbserver1.public.organizations_100
@@ -466,15 +439,13 @@ services:
       context: ./services/spark_processor
       dockerfile: build/Dockerfile
     container_name: spark_processor
-    restart: on-failure
+    restart: always
     depends_on:
       kafka:
         condition: service_started
       minio:
         condition: service_started
       minio-init:
-        condition: service_completed_successfully
-      debezium-configurator:
         condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
