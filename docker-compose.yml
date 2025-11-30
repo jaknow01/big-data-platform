@@ -17,7 +17,7 @@ x-airflow-common:
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR: 'true'
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-pandas psycopg2-binary requests}
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-pandas psycopg2-binary requests pyspark==3.4.1 grpcio-status protobuf==4.25.3}
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/services/airflow/dags:/opt/airflow/dags
@@ -435,11 +435,19 @@ services:
       KAFKA_TOPIC: dbserver1.public.organizations_100
 
   spark-processor:
-    build:
-      context: ./services/spark_processor
-      dockerfile: build/Dockerfile
+    image: apache/spark:3.4.1-python3
     container_name: spark_processor
     restart: always
+    command: >
+      /opt/spark/sbin/start-connect-server.sh 
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4 
+      --conf spark.hadoop.fs.s3a.access.key=minioadmin 
+      --conf spark.hadoop.fs.s3a.secret.key=minioadmin123 
+      --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 
+      --conf spark.hadoop.fs.s3a.path.style.access=true 
+      --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem 
+      --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension 
+      --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
     depends_on:
       kafka:
         condition: service_started
@@ -455,6 +463,8 @@ services:
       MINIO_SECRET_KEY: minioadmin123
     ports:
       - "4040:4040"
+    volumes:
+      - ./services/spark_processor:/opt/spark/work-dir
 
 volumes:
   pgdata:

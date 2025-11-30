@@ -13,9 +13,7 @@ config_kafka = {
 
 # Lista tematów do subskrypcji (można dostosować do swoich potrzeb)
 TOPICS = [
-    'dbserver1.public.organizations_100'
-    # 'dbserver1.public.people_100', 
-    # 'dbserver1.public.products_100'
+    'dbserver1.public.housing'
 ]
 
 def process_cdc_event(message_data):

@@ -5,3 +5,4 @@ spark/
 services/airflow/dags/__pycache__
 services/airflow/dags/scripts/__pycache__
 services/airflow/logs
+services/airflow/config/airflow.cfg
