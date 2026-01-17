@@ -1,7 +1,7 @@
 from airflow.sdk import dag, task
 from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
-from scripts.brozne import ingest_bronze
+from scripts.bronze import ingest_bronze
 from scripts.silver import transform_silver
 
 default_args = {

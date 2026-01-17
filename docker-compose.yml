@@ -117,7 +117,7 @@ services:
     platform: linux/amd64
     restart: always
     ports:
-      - "9000:9000"
+      - "9001:9000"
     depends_on:
       kafka:
         condition: service_healthy
@@ -439,8 +439,12 @@ services:
     container_name: spark_processor
     restart: always
     command: >
-      /opt/spark/sbin/start-connect-server.sh 
-      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4 
+      /opt/spark/bin/spark-submit 
+      --class org.apache.spark.sql.connect.service.SparkConnectServer 
+      --name "Spark Connect Server" 
+      --packages org.apache.spark:spark-connect_2.12:3.4.1,org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,io.delta:delta-core_2.12:2.4.0,org.apache.hadoop:hadoop-aws:3.3.4 
+      --conf spark.jars.ivy=/tmp/.ivy 
+      --conf spark.driver.extraJavaOptions="-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties.template" 
       --conf spark.hadoop.fs.s3a.access.key=minioadmin 
       --conf spark.hadoop.fs.s3a.secret.key=minioadmin123 
       --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 
@@ -463,6 +467,7 @@ services:
       MINIO_SECRET_KEY: minioadmin123
     ports:
       - "4040:4040"
+      - "15002:15002"
     volumes:
       - ./services/spark_processor:/opt/spark/work-dir
 
@@ -470,3 +475,4 @@ volumes:
   pgdata:
   minio_data:
   postgres-db-volume:
+  spark_ivy_cache:
