@@ -1,8 +1,7 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import StructType, StringType, IntegerType
+from pyspark.sql.functions import col, from_json, to_timestamp, when, regexp_replace, current_timestamp
+from pyspark.sql.types import StructType, StringType, IntegerType, BooleanType, TimestampType, LongType
 
-# Schema dla danych Housing (zgodnie z CSV)
 housing_schema = StructType() \
     .add("Index", IntegerType()) \
     .add("price", IntegerType()) \
@@ -35,8 +34,24 @@ def transform_silver():
         .select(from_json(col("json_value"), debezium_schema).alias("data")) \
         .select("data.after.*")
 
-    # 2. Transformacja - usunięcie wierszy z NULL w dowolnej kolumnie
-    silver_df = parsed_df.dropna(how="any")
+    # 2. Transformacja - czyszczenie i normalizacja
+    silver_df = parsed_df \
+        .filter(col("price").between(1750000, 13300000)) \
+        .filter(col("area").between(1650, 16200)) \
+        .filter(col("bedrooms").between(1, 6)) \
+        .filter(col("bathrooms").between(1, 4)) \
+        .filter(col("stories").between(1, 4)) \
+        .filter(col("parking").between(0, 3)) \
+        .dropna(how="any") \
+        .withColumn("mainroad", when(col("mainroad") == "yes", True).otherwise(False).cast(BooleanType())) \
+        .withColumn("guestroom", when(col("guestroom") == "yes", True).otherwise(False).cast(BooleanType())) \
+        .withColumn("basement", when(col("basement") == "yes", True).otherwise(False).cast(BooleanType())) \
+        .withColumn("hotwaterheating", when(col("hotwaterheating") == "yes", True).otherwise(False).cast(BooleanType())) \
+        .withColumn("airconditioning", when(col("airconditioning") == "yes", True).otherwise(False).cast(BooleanType())) \
+        .withColumn("prefarea", when(col("prefarea") == "yes", True).otherwise(False).cast(BooleanType())) \
+        .withColumn("furnishingstatus", regexp_replace(col("furnishingstatus"), "-", "_").cast(StringType())) \
+        .withColumn("ingestion_timestamp", current_timestamp()) \
+        .dropDuplicates(["Index"])
 
     print(f"Bronze records: {parsed_df.count()}, Silver records (after dropping NULLs): {silver_df.count()}")
 

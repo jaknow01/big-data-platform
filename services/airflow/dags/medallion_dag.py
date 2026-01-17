@@ -3,6 +3,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
 from scripts.bronze import ingest_bronze
 from scripts.silver import transform_silver
+from scripts.great_exp import validate_data
 
 default_args = {
     'owner': 'airflow',
@@ -38,7 +39,16 @@ def medallion_pipeline():
             transform_silver()
         else:
             raise Exception("Nie znaleziono funkcji transform_silver w scripts/silver.py")
+        
+    # Zadanie 3: Porównanie z wymaganiami (great expectations)
+    @task(task_id="validate_expectations")
+    def run_validate():
+        if validate_data:
+            print("Sprawdzam czy zdane są zgodne z wymaganiami")
+            validate_data()
+        else:
+            raise Exception("Nie znaleziono funkcji validate_data w scripts/great_exp.py")
 
-    run_bronze_layer() >> run_silver_layer()
+    run_bronze_layer() >> run_silver_layer() >> run_validate()
 
 medallion_pipeline()
