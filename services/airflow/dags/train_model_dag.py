@@ -61,6 +61,7 @@ def train_model_dag():
             X = data.drop(columns=["price"])
             y = data["price"]
             
+            X = pd.get_dummies(X, drop_first=True)
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42
             )
@@ -83,12 +84,15 @@ def train_model_dag():
             mlflow.log_metric("test_r2_score", test_score)
             mlflow.log_param("test_size", 0.2)
             mlflow.log_param("random_state", 42)
+
+            signature = mlflow.models.infer_signature(X_train, model.predict(X_train))
             
             print("Rejestruje model")
             mlflow.sklearn.log_model(
                 sk_model=model,
                 artifact_path="model",
-                registered_model_name="Housing_data_price_prediction"
+                registered_model_name="Housing_data_price_prediction",
+                signature=signature
             )
             
             print(f"Model zarejestrowany w run_id: {run.info.run_id}")
