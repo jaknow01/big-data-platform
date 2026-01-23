@@ -6,7 +6,7 @@ import random
 
 def simulate_change():
     time.sleep(5)
-    print("\n🔄 Starting continuous data simulation...\n", flush=True)
+    print("\n🔄 Starting continuous data simulation for Housing data...\n", flush=True)
 
     config_postgres = {
         'dbname': os.getenv('POSTGRES_DB', 'baza_postgres'),
@@ -19,13 +19,19 @@ def simulate_change():
     conn = psycopg2.connect(**config_postgres)
     cur = conn.cursor()
     
-    countries = ['Poland', 'USA', 'Germany', 'France', 'Spain', 'Italy', 'Japan', 'Brazil']
-    industries = ['Technology', 'Finance', 'Healthcare', 'Education', 'Manufacturing', 'Retail']
+    # Dostępne wartości dla Housing
+    yes_no = ['yes', 'no']
+    furnishing_statuses = ['furnished', 'semi-furnished', 'unfurnished']
+    
+    # Kolumny które mogą mieć NULL (wszystkie poza Index - kluczem głównym)
+    nullable_columns = ['price', 'area', 'bedrooms', 'bathrooms', 'stories', 
+                        'mainroad', 'guestroom', 'basement', 'hotwaterheating', 
+                        'airconditioning', 'parking', 'prefarea', 'furnishingstatus']
     
     operation_count = 0
     
     try:
-        while operation_count<10:
+        while operation_count < 10:
             sleep_time = random.uniform(2, 6)
             time.sleep(sleep_time)
             
@@ -36,53 +42,94 @@ def simulate_change():
             
             try:
                 if operation == 'INSERT':
-                    org_id = ''.join(random.choices('0123456789ABCDEFabcdef', k=15))
-                    name = f"Company {random.randint(1000, 9999)}"
-                    website = f"https://company{random.randint(100, 999)}.com"
-                    country = random.choice(countries)
-                    description = "Auto-generated test company"
-                    founded = random.randint(1970, 2023)
-                    industry = random.choice(industries)
-                    employees = random.randint(100, 10000)
+                    # Generuj losowe wartości dla nowego rekordu
+                    price = random.randint(1500000, 15000000)
+                    area = random.randint(1500, 16000)
+                    bedrooms = random.randint(1, 6)
+                    bathrooms = random.randint(1, 4)
+                    stories = random.randint(1, 4)
+                    mainroad = random.choice(yes_no)
+                    guestroom = random.choice(yes_no)
+                    basement = random.choice(yes_no)
+                    hotwaterheating = random.choice(yes_no)
+                    airconditioning = random.choice(yes_no)
+                    parking = random.randint(0, 3)
+                    prefarea = random.choice(yes_no)
+                    furnishingstatus = random.choice(furnishing_statuses)
                     
-                    # UŻYJ DEFAULT DLA Index - zostanie automatycznie wygenerowany
+                    # 20% szans na wstawienie NULL w losowej kolumnie (poza kluczem)
+                    values = {
+                        'price': price,
+                        'area': area,
+                        'bedrooms': bedrooms,
+                        'bathrooms': bathrooms,
+                        'stories': stories,
+                        'mainroad': mainroad,
+                        'guestroom': guestroom,
+                        'basement': basement,
+                        'hotwaterheating': hotwaterheating,
+                        'airconditioning': airconditioning,
+                        'parking': parking,
+                        'prefarea': prefarea,
+                        'furnishingstatus': furnishingstatus
+                    }
+                    
+                    null_column = None
+                    if random.random() < 0.2:  # 20% szans na NULL
+                        null_column = random.choice(nullable_columns)
+                        values[null_column] = None
+                    
                     cur.execute("""
-                        INSERT INTO organizations_100 
-                        ("Index", "Organization Id", "Name", "Website", "Country", "Description", "Founded", "Industry", "Number of employees")
-                        VALUES (DEFAULT, %s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO housing 
+                        ("Index", "price", "area", "bedrooms", "bathrooms", "stories", 
+                         "mainroad", "guestroom", "basement", "hotwaterheating", 
+                         "airconditioning", "parking", "prefarea", "furnishingstatus")
+                        VALUES (DEFAULT, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING "Index"
-                    """, (org_id, name, website, country, description, founded, industry, employees))
+                    """, (values['price'], values['area'], values['bedrooms'], values['bathrooms'], 
+                          values['stories'], values['mainroad'], values['guestroom'], values['basement'],
+                          values['hotwaterheating'], values['airconditioning'], values['parking'], 
+                          values['prefarea'], values['furnishingstatus']))
                     
                     new_index = cur.fetchone()[0]
-                    print(f"[{timestamp}] ✅ Operation #{operation_count}: INSERTED new company '{name}' from {country} (Index={new_index})", flush=True)
+                    null_info = f" (NULL in {null_column})" if null_column else ""
+                    print(f"[{timestamp}] ✅ Operation #{operation_count}: INSERTED new housing record (Index={new_index}, price={values['price']}, area={values['area']}){null_info}", flush=True)
                     
                 elif operation == 'UPDATE':
-                    cur.execute('SELECT "Index" FROM organizations_100 ORDER BY RANDOM() LIMIT 1')
+                    cur.execute('SELECT "Index" FROM housing ORDER BY RANDOM() LIMIT 1')
                     result = cur.fetchone()
                     
                     if result:
                         index = result[0]
-                        new_employees = random.randint(100, 10000)
-                        new_country = random.choice(countries)
+                        new_price = random.randint(1500000, 15000000)
+                        new_bedrooms = random.randint(1, 6)
+                        
+                        # 15% szans na ustawienie NULL podczas UPDATE
+                        if random.random() < 0.15:
+                            update_col = random.choice(['price', 'bedrooms'])
+                            if update_col == 'price':
+                                new_price = None
+                            else:
+                                new_bedrooms = None
                         
                         cur.execute("""
-                            UPDATE organizations_100 
-                            SET "Number of employees" = %s, "Country" = %s
+                            UPDATE housing 
+                            SET "price" = %s, "bedrooms" = %s
                             WHERE "Index" = %s
-                        """, (new_employees, new_country, index))
+                        """, (new_price, new_bedrooms, index))
                         
-                        print(f"[{timestamp}] 🔄 Operation #{operation_count}: UPDATED organization (Index={index}) - employees: {new_employees}, country: {new_country}", flush=True)
+                        print(f"[{timestamp}] 🔄 Operation #{operation_count}: UPDATED housing (Index={index}) - price: {new_price}, bedrooms: {new_bedrooms}", flush=True)
                     else:
                         print(f"[{timestamp}] ⚠️  Operation #{operation_count}: UPDATE skipped - no records found", flush=True)
                         
                 elif operation == 'DELETE':
-                    cur.execute('SELECT "Index", "Name" FROM organizations_100 ORDER BY RANDOM() LIMIT 1')
+                    cur.execute('SELECT "Index", "price" FROM housing ORDER BY RANDOM() LIMIT 1')
                     result = cur.fetchone()
                     
                     if result:
-                        index, name = result
-                        cur.execute('DELETE FROM organizations_100 WHERE "Index" = %s', (index,))
-                        print(f"[{timestamp}] ❌ Operation #{operation_count}: DELETED organization '{name}' (Index={index})", flush=True)
+                        index, price = result
+                        cur.execute('DELETE FROM housing WHERE "Index" = %s', (index,))
+                        print(f"[{timestamp}] ❌ Operation #{operation_count}: DELETED housing record (Index={index}, price={price})", flush=True)
                     else:
                         print(f"[{timestamp}] ⚠️  Operation #{operation_count}: DELETE skipped - no records found", flush=True)
                 
